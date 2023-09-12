@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<discovery xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://schemas.xmlsoap.org/disco/">
+  <contractRef ref="http://sdixaws2016test:8083/SDIEmailSvc/EmailServices.asmx?wsdl" docRef="http://sdixaws2016test:8083/SDIEmailSvc/EmailServices.asmx" xmlns="http://schemas.xmlsoap.org/disco/scl/" />
+  <soap address="http://sdixaws2016test:8083/SDIEmailSvc/EmailServices.asmx" xmlns:q1="http://www.sdiexchange.com/" binding="q1:EmailServicesSoap" xmlns="http://schemas.xmlsoap.org/disco/soap/" />
+  <soap address="http://sdixaws2016test:8083/SDIEmailSvc/EmailServices.asmx" xmlns:q2="http://www.sdiexchange.com/" binding="q2:EmailServicesSoap12" xmlns="http://schemas.xmlsoap.org/disco/soap/" />
+</discovery>
