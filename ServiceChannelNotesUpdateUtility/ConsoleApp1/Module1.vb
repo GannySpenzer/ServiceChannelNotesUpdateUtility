@@ -87,6 +87,7 @@ Module Module1
                         UpdateWalmartSourceCode(dteStartDate, dteEndDate, dsBU.Tables(0).Rows(I).Item("BUSINESS_UNIT"))
 
                     Catch ex As Exception
+                        objWalSCWorkOrder.WriteLine("  Error in StatChg Email Update workorder Executeion : " & ex.Message & " " & Now())
 
                     End Try
 
@@ -113,6 +114,7 @@ Module Module1
                 dataAdapter.Fill(ds)
                 connectOR.Close()
             Catch ex As Exception
+                objWalSCWorkOrder.WriteLine("Error in GetBU  " & " " & ex.Message & Now())
 
             End Try
             If Not ds Is Nothing Then
@@ -245,6 +247,7 @@ Module Module1
                 End If
             Catch ex As Exception
                 dteEndDate = Now.ToString
+                objWalSCWorkOrder.WriteLine("     Error - error reading end date FROM PS_ISAORDSTATUSLOG A" & " " & Now())
             End Try
 
             dr.Close()
@@ -353,9 +356,9 @@ Module Module1
                      " AND B.ISA_LINE_STATUS IN ('DLF','ASN','DLP','CNC','RPU')" & vbCrLf &
                      " AND A.BUSINESS_UNIT_OM = D.BUSINESS_UNIT" & vbCrLf &
                      " AND SH.PO_ID (+) = LD.PO_ID And SH.LINE_NBR (+) = LD.LINE_NBR And SH.SCHED_NBR (+) = LD.SCHED_NBR And LD.Req_id (+) = B.order_no AND LD.REQ_LINE_NBR (+) = B.ISA_INTFC_LN" & vbCrLf &
-                     " AND G.DTTM_STAMP > TO_DATE('" & dteStartDate & "', 'MM/DD/YYYY HH:MI:SS AM')" & vbCrLf &
-                     " AND G.DTTM_STAMP <= TO_DATE('" & dteEndDate & "', 'MM/DD/YYYY HH:MI:SS AM')" & vbCrLf &
-                     " AND UPPER(B.ISA_EMPLOYEE_ID) = UPPER(D.ISA_EMPLOYEE_ID)" & vbCrLf &
+                      "AND G.DTTM_STAMP > TO_DATE('" & dteStartDate & "', 'MM/DD/YYYY HH:MI:SS AM')" & vbCrLf &
+                      "AND G.DTTM_STAMP <= TO_DATE('" & dteEndDate & "', 'MM/DD/YYYY HH:MI:SS AM')" & vbCrLf &
+            " AND UPPER(B.ISA_EMPLOYEE_ID) = UPPER(D.ISA_EMPLOYEE_ID)" & vbCrLf &
                       " ORDER BY ORDER_NO, LINE_NBR, DTTM_STAMP"
 
             Try
@@ -386,7 +389,7 @@ Module Module1
                         Dim OrderNo As String = ds.Tables(0).Rows(I).Item("ORDER_NO")
                         If OrderNo.ToUpper.Substring(0, 1) = "W" Then
                             If Not lstOfString.Contains(OrderNo) Then
-                                objWalSCWorkOrder.WriteLine("Order No: " + Convert.ToString(OrderNo))
+                                objWalSCWorkOrder.WriteLine("Order No: " + Convert.ToString(OrderNo) + "Count " + Convert.ToString(I))
                                 lstOfString.Add(OrderNo)
                                 Dim WorkOrder As String = ds.Tables(0).Rows(I).Item("WORK_ORDER_NO")
                                 objWalSCWorkOrder.WriteLine("WorkOrder No: " + Convert.ToString(WorkOrder))
@@ -479,6 +482,8 @@ Module Module1
                 Try
                     connectOR.Close()
                 Catch ex As Exception
+                    objWalSCWorkOrder.WriteLine("Error in UpdateWalmartSourcecodemetod  " & " " & ex.Message & Now())
+                    SendEmail()
 
                 End Try
                 Return False
@@ -487,6 +492,8 @@ Module Module1
                 objWalSCWorkOrder.WriteLine("Fetched Datas " + Convert.ToString(ds.Tables(0).Rows.Count()) & " " & Now())
             End If
         Catch ex As Exception
+            objWalSCWorkOrder.WriteLine("Error in UpdateWalmartSourcecodemetod  " & " " & ex.Message & Now())
+            SendEmail()
 
         End Try
         bolerror1 = updateLastSendDate(strBU, dteEndDate)
@@ -708,6 +715,7 @@ Module Module1
             End If
 
         Catch ex As Exception
+            objWalSCComments.WriteLine("GetNotes" & " " & ex.Message & Now())
 
         End Try
     End Function
