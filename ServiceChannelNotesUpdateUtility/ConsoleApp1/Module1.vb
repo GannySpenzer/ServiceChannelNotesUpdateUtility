@@ -52,8 +52,8 @@ Module Module1
         objWalSCComments.WriteLine("Start Walmart Service Channel Comments " & Now())
         objWalSCWorkOrder = File.CreateText(WalmartSCWorkOrderPath)
         objWalSCWorkOrder.WriteLine("Start Updatework orders to Service channel " & Now())
-
-        GetNotes()
+        'Madhu-INC0031548 - Utility splitup [Commented the notes]
+        ' GetNotes()
         buildstatchgout()
 
         objWalSCComments.WriteLine("Ends " & Now())
@@ -88,12 +88,24 @@ Module Module1
 
                     Catch ex As Exception
                         objWalSCWorkOrder.WriteLine("  Error in StatChg Email Update workorder Executeion : " & ex.Message & " " & Now())
-
+                        SendEmail(ex.Message)
                     End Try
 
                 End If
             Next
         End If
+    End Function
+    Public Function getDBName() As Boolean
+        Dim isPRODDB As Boolean = False
+        Dim PRODDbList As String = ConfigurationSettings.AppSettings("OraPRODDbList").ToString()
+        Dim DbUrl As String = ConfigurationSettings.AppSettings("OLEDBconString").ToString()
+        Try
+            DbUrl = DbUrl.Substring(DbUrl.Length - 4).ToUpper()
+            isPRODDB = (PRODDbList.IndexOf(DbUrl.Trim.ToUpper) > -1)
+        Catch ex As Exception
+            isPRODDB = False
+        End Try
+        Return isPRODDB
     End Function
     Private Function GetBU() As DataSet
         Dim ds As System.Data.DataSet = New System.Data.DataSet
@@ -131,29 +143,35 @@ Module Module1
         End Try
     End Function
 
-    Private Sub SendEmail()
+    Private Sub SendEmail(Optional ByVal Message As String = "")
 
         Dim SDIEmailService As SDiEmailUtilityService.EmailServices = New SDiEmailUtilityService.EmailServices()
         Dim MailAttachmentName As String()
         Dim sTR As String
         Dim MailAttachmentbytes As New List(Of Byte())()
         Dim email As New MailMessage
+        Dim MailToSpecial As String = ConfigurationSettings.AppSettings("MailToSpecial")
 
         'The email address of the sender
         email.From = "WalmartPurchasing@sdi.com"
 
         'The email address of the recipient. 
-        email.To = "webdev@sdi.com" '  "pete.doyle@sdi.com"
+        If Not getDBName() Then
+            email.To = "webdev@sdi.com"
+
+        Else
+            email.To = MailToSpecial
+        End If
 
         'The subject of the email
-        email.Subject = "Error in the 'Update workorder status' Utility."
+        email.Subject = "Error in the Update workorder status to Service channel Utility."
 
         'The Priority attached and displayed for the email
         email.Priority = MailPriority.High
 
         email.BodyFormat = MailFormat.Html
 
-        email.Body = "<html><body><table><tr><td>StatusChangeEmail has completed with errors, review log (C:\StatChg) </td></tr>"
+        email.Body = "<html><body><table><tr><td>Update workorder status to Service channel' Utility has completed with errors.Please Check Logs </td></tr>"
 
         'email.Body = email.Body & "<tr><td></td><a href='\\BDougherty_XP-l\logs'>\\BDougherty_XP-l\logs\</a></tr></table></body></html>"
 
@@ -378,6 +396,7 @@ Module Module1
                     ds = ORDBAccess.GetAdapter(strSQLstring, connectOR)
                     objWalSCWorkOrder.WriteLine("Query Execution Time " + Now())
                     objWalSCWorkOrder.WriteLine("Fetched Datas:" + Convert.ToString(ds.Tables(0).Rows.Count()))
+                    SendEmail(ex.Message)
 
                 End Try
 
@@ -483,7 +502,7 @@ Module Module1
                     connectOR.Close()
                 Catch ex As Exception
                     objWalSCWorkOrder.WriteLine("Error in UpdateWalmartSourcecodemetod  " & " " & ex.Message & Now())
-                    SendEmail()
+                    SendEmail(ex.Message)
 
                 End Try
                 Return False
@@ -493,7 +512,7 @@ Module Module1
             End If
         Catch ex As Exception
             objWalSCWorkOrder.WriteLine("Error in UpdateWalmartSourcecodemetod  " & " " & ex.Message & Now())
-            SendEmail()
+            SendEmail(ex.Message)
 
         End Try
         bolerror1 = updateLastSendDate(strBU, dteEndDate)
