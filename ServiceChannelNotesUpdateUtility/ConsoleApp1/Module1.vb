@@ -12,12 +12,13 @@ Imports System.Web
 Imports System.Web.Mail
 Module Module1
     'variable declartions
+    'Madhu-INC0031327-Commented the Notes Log
 
-    Dim objWalSCComments As StreamWriter
+    'Dim objWalSCComments As StreamWriter
     Dim objWalSCWorkOrder As StreamWriter
     Dim objWalmartSC As StreamWriter
     Dim rootDir As String = ConfigurationSettings.AppSettings("rootDir")
-    Dim logpath As String = ConfigurationSettings.AppSettings("logpath") & Now.Year & Now.Month & Now.Day & Now.GetHashCode & ".txt"
+    ' Dim logpath As String = ConfigurationSettings.AppSettings("logpath") & Now.Year & Now.Month & Now.Day & Now.GetHashCode & ".txt"
     Dim WalmartSCWorkOrderPath As String = ConfigurationSettings.AppSettings("WalmartSCWorkOrder") & Now.Year & Now.Month & Now.Day & Now.GetHashCode & ".txt"
     Dim connectOR As New OleDbConnection(Convert.ToString(ConfigurationSettings.AppSettings("OLEDBconString")))
 
@@ -33,7 +34,7 @@ Module Module1
 
         Console.WriteLine("")
 
-        Dim WorkOrderComments As String = logpath & "_" & String.Format("{0:yyyy-MM-dd_hh-mm-ss-tt}", DateTime.Now) & ".txt"
+        Dim WorkOrderComments As String = WalmartSCWorkOrderPath & "_" & String.Format("{0:yyyy-MM-dd_hh-mm-ss-tt}", DateTime.Now) & ".txt"
         logFileInfo = New FileInfo(WorkOrderComments)
         logDirInfo = New DirectoryInfo(logFileInfo.DirectoryName)
 
@@ -48,18 +49,18 @@ Module Module1
         End If
 
 
-        objWalSCComments = New StreamWriter(fileStream)
-        objWalSCComments.WriteLine("Start Walmart Service Channel Comments " & Now())
-        objWalSCWorkOrder = File.CreateText(WalmartSCWorkOrderPath)
+        objWalSCWorkOrder = New StreamWriter(fileStream)
+        'objWalSCComments.WriteLine("Start Walmart Service Channel Comments " & Now())
+        'objWalSCWorkOrder = File.CreateText(WalmartSCWorkOrderPath)
         objWalSCWorkOrder.WriteLine("Start Updatework orders to Service channel " & Now())
         'Madhu-INC0031548 - Utility splitup [Commented the notes]
         ' GetNotes()
         buildstatchgout()
 
-        objWalSCComments.WriteLine("Ends " & Now())
+        ' objWalSCComments.WriteLine("Ends " & Now())
 
-        objWalSCComments.Flush()
-        objWalSCComments.Close()
+        ' objWalSCComments.Flush()
+        ' objWalSCComments.Close()
 
         objWalSCWorkOrder.WriteLine("Ends " & Now())
 
@@ -672,112 +673,112 @@ Module Module1
 
     End Function
     ' Method to checks for user type as walmart or third party
-    Private Function GetNotes()
-        Try
-            Dim ds As New DataSet
-            Dim addminutes As Int16 = Convert.ToInt16(ConfigurationSettings.AppSettings("StartDateNotes"))
-            Dim StartDate As DateTime = Now().AddMinutes(addminutes)
-            Dim EndDate As DateTime = Now()
-            Dim sqlstring As String = ""
-            sqlstring = "select A.ORDER_NO, A.ISA_INTFC_LN, A.ISA_WORK_ORDER_NO,B.PO_ID,A.ISA_LINE_STATUS," & vbCrLf &
-                "C.NOTES_1000,A.ISA_EMPLOYEE_ID from PS_ISA_ORD_INTF_LN A,PS_PO_LINE_DISTRIB B,ps_isa_xpd_comment C" & vbCrLf &
-                "where A.business_unit_OM = 'I0W01' AND   A.ISA_LINE_STATUS IN ('DSP','ASN')" & vbCrLf &
-                "AND A.BUSINESS_UNIT_PO = B.BUSINESS_UNIT" & vbCrLf &
-                "AND A.ORDER_NO = B.REQ_ID" & vbCrLf &
-                "AND A.ISA_INTFC_LN = B.REQ_LINE_NBR" & vbCrLf &
-                "AND B.BUSINESS_UNIT = C.BUSINESS_UNIT" & vbCrLf &
-                "AND B.PO_ID = C.PO_ID" & vbCrLf &
-                "AND B.LINE_NBR= C.LINE_NBR" & vbCrLf &
-                "AND C.ISA_PROBLEM_CODE NOT IN ('AK','WS')" & vbCrLf &
-                "AND C.DTTM_STAMP > TO_DATE('" & StartDate & "', 'MM/DD/YYYY HH:MI:SS AM')" & vbCrLf &
-                "AND C.DTTM_STAMP <= TO_DATE('" & EndDate & "', 'MM/DD/YYYY HH:MI:SS AM')" & vbCrLf
+    'Private Function GetNotes()
+    '    Try
+    '        Dim ds As New DataSet
+    '        Dim addminutes As Int16 = Convert.ToInt16(ConfigurationSettings.AppSettings("StartDateNotes"))
+    '        Dim StartDate As DateTime = Now().AddMinutes(addminutes)
+    '        Dim EndDate As DateTime = Now()
+    '        Dim sqlstring As String = ""
+    '        sqlstring = "select A.ORDER_NO, A.ISA_INTFC_LN, A.ISA_WORK_ORDER_NO,B.PO_ID,A.ISA_LINE_STATUS," & vbCrLf &
+    '            "C.NOTES_1000,A.ISA_EMPLOYEE_ID from PS_ISA_ORD_INTF_LN A,PS_PO_LINE_DISTRIB B,ps_isa_xpd_comment C" & vbCrLf &
+    '            "where A.business_unit_OM = 'I0W01' AND   A.ISA_LINE_STATUS IN ('DSP','ASN')" & vbCrLf &
+    '            "AND A.BUSINESS_UNIT_PO = B.BUSINESS_UNIT" & vbCrLf &
+    '            "AND A.ORDER_NO = B.REQ_ID" & vbCrLf &
+    '            "AND A.ISA_INTFC_LN = B.REQ_LINE_NBR" & vbCrLf &
+    '            "AND B.BUSINESS_UNIT = C.BUSINESS_UNIT" & vbCrLf &
+    '            "AND B.PO_ID = C.PO_ID" & vbCrLf &
+    '            "AND B.LINE_NBR= C.LINE_NBR" & vbCrLf &
+    '            "AND C.ISA_PROBLEM_CODE NOT IN ('AK','WS')" & vbCrLf &
+    '            "AND C.DTTM_STAMP > TO_DATE('" & StartDate & "', 'MM/DD/YYYY HH:MI:SS AM')" & vbCrLf &
+    '            "AND C.DTTM_STAMP <= TO_DATE('" & EndDate & "', 'MM/DD/YYYY HH:MI:SS AM')" & vbCrLf
 
-            objWalSCComments.WriteLine("   Supplier comments Query: " & sqlstring)
-            objWalSCComments.WriteLine("Start Supplier comment Service Channel " & Now())
+    '         objWalSCComments.WriteLine("   Supplier comments Query: " & sqlstring)
+    '         objWalSCComments.WriteLine("Start Supplier comment Service Channel " & Now())
 
-            ds = ORDBAccess.GetAdapter(sqlstring, connectOR)
+    '        ds = ORDBAccess.GetAdapter(sqlstring, connectOR)
 
-            If ds.Tables(0).Rows.Count > 0 Then
-                Dim I As Integer
-                For I = 0 To ds.Tables(0).Rows.Count - 1
-                    Dim PO_num As String = String.Empty
-                    Try
-                        Dim Line_Status As String = ds.Tables(0).Rows(I).Item("ISA_LINE_STATUS")
-                        PO_num = ds.Tables(0).Rows(I).Item("PO_ID")
-                        Dim OrderNum As String = ds.Tables(0).Rows(I).Item("ORDER_NO")
-                        Dim WorkOrder As String = ds.Tables(0).Rows(I).Item("ISA_WORK_ORDER_NO")
-                        Dim Emp_id As String = ds.Tables(0).Rows(I).Item("ISA_EMPLOYEE_ID")
-                        Dim strComments As String = ds.Tables(0).Rows(I).Item("NOTES_1000")
-                        Dim Third_party_comp_id As String = ""
-                        Try
-                            Dim Sqlstring2 As String = "select THIRDPARTY_COMP_ID from SDIX_USERS_TBL where ISA_EMPLOYEE_ID = '" & Emp_id & "'"
-                            connectOR.Open()
-                            Third_party_comp_id = ORDBAccess.GetScalar(Sqlstring2, connectOR)
-                            connectOR.Close()
-                        Catch ex As Exception
-                            Third_party_comp_id = "0"
-                        End Try
+    '        If ds.Tables(0).Rows.Count > 0 Then
+    '            Dim I As Integer
+    '            For I = 0 To ds.Tables(0).Rows.Count - 1
+    '                Dim PO_num As String = String.Empty
+    '                Try
+    '                    Dim Line_Status As String = ds.Tables(0).Rows(I).Item("ISA_LINE_STATUS")
+    '                    PO_num = ds.Tables(0).Rows(I).Item("PO_ID")
+    '                    Dim OrderNum As String = ds.Tables(0).Rows(I).Item("ORDER_NO")
+    '                    Dim WorkOrder As String = ds.Tables(0).Rows(I).Item("ISA_WORK_ORDER_NO")
+    '                    Dim Emp_id As String = ds.Tables(0).Rows(I).Item("ISA_EMPLOYEE_ID")
+    '                    Dim strComments As String = ds.Tables(0).Rows(I).Item("NOTES_1000")
+    '                    Dim Third_party_comp_id As String = ""
+    '                    Try
+    '                        Dim Sqlstring2 As String = "select THIRDPARTY_COMP_ID from SDIX_USERS_TBL where ISA_EMPLOYEE_ID = '" & Emp_id & "'"
+    '                        connectOR.Open()
+    '                        Third_party_comp_id = ORDBAccess.GetScalar(Sqlstring2, connectOR)
+    '                        connectOR.Close()
+    '                    Catch ex As Exception
+    '                        Third_party_comp_id = "0"
+    '                    End Try
 
-                        Dim CredType As String = ""
-                        If Third_party_comp_id <> "100" Then
-                            CredType = "Walmart"
-                        End If
-                        UpdateNotes(WorkOrder, CredType, strComments, PO_num, OrderNum)
-                    Catch ex As Exception
-                        objWalSCComments.WriteLine("Result- Failed in updating notes for the PO " + PO_num)
-                    End Try
+    '                    Dim CredType As String = ""
+    '                    If Third_party_comp_id <> "100" Then
+    '                        CredType = "Walmart"
+    '                    End If
+    '                    UpdateNotes(WorkOrder, CredType, strComments, PO_num, OrderNum)
+    '                Catch ex As Exception
+    '                    objWalSCComments.WriteLine("Result- Failed in updating notes for the PO " + PO_num)
+    '                End Try
 
-                Next
-                objWalSCComments.WriteLine("/////////////////////////////////////////////////////////////////////////////////////////////")
-            Else
-                objWalSCComments.WriteLine("No data fetched")
-            End If
+    '            Next
+    '            objWalSCComments.WriteLine("/////////////////////////////////////////////////////////////////////////////////////////////")
+    '        Else
+    '            objWalSCComments.WriteLine("No data fetched")
+    '        End If
 
-        Catch ex As Exception
-            objWalSCComments.WriteLine("GetNotes" & " " & ex.Message & Now())
+    '    Catch ex As Exception
+    '        objWalSCComments.WriteLine("GetNotes" & " " & ex.Message & Now())
 
-        End Try
-    End Function
+    '    End Try
+    'End Function
     'This method is used for sending Success or failure message by validating the http response
-    Public Function UpdateNotes(ByVal workOrder As String, credType As String, Note As String, Ponum As String, Ordernum As String) As String
-        Try
-            If Not String.IsNullOrEmpty(workOrder) And Not String.IsNullOrWhiteSpace(workOrder) Then
-                Dim APIresponse = AuthenticateService(credType)
-                If (APIresponse <> "Server Error" And APIresponse <> "Internet Error" And APIresponse <> "Error") Then
-                    If (Not APIresponse.Contains("error_description")) Then
-                        Dim objValidateUserResponseBO As ValidateUserResponseBO = JsonConvert.DeserializeObject(Of ValidateUserResponseBO)(APIresponse)
-                        Dim apiURL = ConfigurationSettings.AppSettings("ServiceChannelBaseAddress") + "/workorders/" + workOrder + "/notes"
-                        Dim httpClient As HttpClient = New HttpClient()
-                        ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12
-                        httpClient.DefaultRequestHeaders.Authorization = New AuthenticationHeaderValue("Bearer", objValidateUserResponseBO.access_token)
-                        Dim objNoteParam As New UpdateNote
-                        objNoteParam.Note = Note
-                        objNoteParam.MailedTo = ""
-                        objNoteParam.ActionRequired = False
-                        objNoteParam.ScheduledDate = Now
-                        objNoteParam.Visibility = 0
-                        objNoteParam.Actor = ""
-                        objNoteParam.NotifyFollowers = False
-                        objNoteParam.DoNotSendEmail = True
+    'Public Function UpdateNotes(ByVal workOrder As String, credType As String, Note As String, Ponum As String, Ordernum As String) As String
+    '    Try
+    '        If Not String.IsNullOrEmpty(workOrder) And Not String.IsNullOrWhiteSpace(workOrder) Then
+    '            Dim APIresponse = AuthenticateService(credType)
+    '            If (APIresponse <> "Server Error" And APIresponse <> "Internet Error" And APIresponse <> "Error") Then
+    '                If (Not APIresponse.Contains("error_description")) Then
+    '                    Dim objValidateUserResponseBO As ValidateUserResponseBO = JsonConvert.DeserializeObject(Of ValidateUserResponseBO)(APIresponse)
+    '                    Dim apiURL = ConfigurationSettings.AppSettings("ServiceChannelBaseAddress") + "/workorders/" + workOrder + "/notes"
+    '                    Dim httpClient As HttpClient = New HttpClient()
+    '                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12
+    '                    httpClient.DefaultRequestHeaders.Authorization = New AuthenticationHeaderValue("Bearer", objValidateUserResponseBO.access_token)
+    '                    Dim objNoteParam As New UpdateNote
+    '                    objNoteParam.Note = Note
+    '                    objNoteParam.MailedTo = ""
+    '                    objNoteParam.ActionRequired = False
+    '                    objNoteParam.ScheduledDate = Now
+    '                    objNoteParam.Visibility = 0
+    '                    objNoteParam.Actor = ""
+    '                    objNoteParam.NotifyFollowers = False
+    '                    objNoteParam.DoNotSendEmail = True
 
-                        Dim serializedparameter = JsonConvert.SerializeObject(objNoteParam)
-                        Dim response = httpClient.PostAsync(apiURL, New StringContent(serializedparameter, Encoding.UTF8, "application/json")).Result
-                        If response.IsSuccessStatusCode Then
-                            Dim workorderAPIResponse As String = response.Content.ReadAsStringAsync().Result
-                            objWalSCComments.WriteLine("Result - Success " + Convert.ToString(workorderAPIResponse) + " Work Order-" + workOrder + " PO ID-" + Ponum + " Order No-" + Ordernum + " CredType-" + credType)
-                            Return "Success"
-                        Else
-                            objWalSCComments.WriteLine("Result- Failed in API response Work Order-" + workOrder + " PO ID-" + Ponum + " Order No-" + Ordernum + " CredType-" + credType)
-                            Return "Failed"
-                        End If
-                    End If
-                End If
-            End If
-        Catch ex As Exception
-            Return "Failed"
-            objWalSCComments.WriteLine("Method:UpdateNotes - " + ex.Message)
-        End Try
-    End Function
+    '                    Dim serializedparameter = JsonConvert.SerializeObject(objNoteParam)
+    '                    Dim response = httpClient.PostAsync(apiURL, New StringContent(serializedparameter, Encoding.UTF8, "application/json")).Result
+    '                    If response.IsSuccessStatusCode Then
+    '                        Dim workorderAPIResponse As String = response.Content.ReadAsStringAsync().Result
+    '                        objWalSCComments.WriteLine("Result - Success " + Convert.ToString(workorderAPIResponse) + " Work Order-" + workOrder + " PO ID-" + Ponum + " Order No-" + Ordernum + " CredType-" + credType)
+    '                        Return "Success"
+    '                    Else
+    '                        objWalSCComments.WriteLine("Result- Failed in API response Work Order-" + workOrder + " PO ID-" + Ponum + " Order No-" + Ordernum + " CredType-" + credType)
+    '                        Return "Failed"
+    '                    End If
+    '                End If
+    '            End If
+    '        End If
+    '    Catch ex As Exception
+    '        Return "Failed"
+    '        objWalSCComments.WriteLine("Method:UpdateNotes - " + ex.Message)
+    '    End Try
+    'End Function
 
     'This method is used for Authentication the credential type
     Public Function AuthenticateService(credType As String) As String
