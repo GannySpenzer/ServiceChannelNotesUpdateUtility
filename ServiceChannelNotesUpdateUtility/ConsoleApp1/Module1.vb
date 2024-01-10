@@ -340,7 +340,7 @@ Module Module1
             Dim ds As New DataSet
             Dim strSQLstring As String = String.Empty
             strSQLstring = "SELECT distinct G.BUSINESS_UNIT_OM, G.BUSINESS_UNIT_OM AS G_BUS_UNIT, D.BUSINESS_UNIT, D.ISA_EMPLOYEE_ID, A.ORDER_NO,B.ISA_WORK_ORDER_NO As WORK_ORDER_NO, B.ISA_INTFC_LN AS line_nbr," & vbCrLf &
-                " B.ISA_EMPLOYEE_ID AS EMPLID, B.ISA_LINE_STATUS as ORDER_TYPE,B.OPRID_ENTERED_BY," & vbCrLf &
+                " B.ISA_EMPLOYEE_ID AS EMPLID, B.ISA_LINE_STATUS as ORDER_TYPE,B.OPRID_ENTERED_BY,WO.ISA_INSTALL_CUST," & vbCrLf &
                 " TO_CHAR(G.DTTM_STAMP, 'MM/DD/YYYY HH:MI:SS AM') as DTTM_STAMP, " & vbCrLf &  '  & _
                      " (SELECT E.XLATLONGNAME" & vbCrLf &
                                     " FROM XLATTABLE E" & vbCrLf &
@@ -360,7 +360,7 @@ Module Module1
             strSQLstring += " ps_isa_ord_intf_LN B," & vbCrLf &
                      " PS_MASTER_ITEM_TBL C," & vbCrLf &
                      " PS_ISA_USERS_TBL D," & vbCrLf &
-                     " PS_ISAORDSTATUSLOG G, PS_ISA_ASN_SHIPPED SH, PS_PO_LINE_DISTRIB LD" & vbCrLf &
+                     " PS_ISAORDSTATUSLOG G, PS_ISA_ASN_SHIPPED SH,PS_ISA_WO_STATUS WO, PS_PO_LINE_DISTRIB LD" & vbCrLf &
                      " where G.BUSINESS_UNIT_OM = '" & strBU & "' " & vbCrLf &
                      " AND G.BUSINESS_UNIT_OM = A.BUSINESS_UNIT_OM " & vbCrLf &
                      " AND G.BUSINESS_UNIT_OM = D.BUSINESS_UNIT " & vbCrLf     '   & _
@@ -374,11 +374,13 @@ Module Module1
                      " AND G.ISA_LINE_STATUS = B.ISA_LINE_STATUS" & vbCrLf &
                      " AND B.ISA_LINE_STATUS IN ('DLF','ASN','DLP','CNC','RPU')" & vbCrLf &
                      " AND A.BUSINESS_UNIT_OM = D.BUSINESS_UNIT" & vbCrLf &
+                     " AND B.ISA_WORK_ORDER_NO = WO.ISA_WORK_ORDER_NO(+)" & vbCrLf &
+                     " AND B.BUSINESS_UNIT_OM = WO.BUSINESS_UNIT_OM(+)" & vbCrLf &
                      " AND SH.PO_ID (+) = LD.PO_ID And SH.LINE_NBR (+) = LD.LINE_NBR And SH.SCHED_NBR (+) = LD.SCHED_NBR And LD.Req_id (+) = B.order_no AND LD.REQ_LINE_NBR (+) = B.ISA_INTFC_LN" & vbCrLf &
                       "AND G.DTTM_STAMP > TO_DATE('" & dteStartDate & "', 'MM/DD/YYYY HH:MI:SS AM')" & vbCrLf &
                       "AND G.DTTM_STAMP <= TO_DATE('" & dteEndDate & "', 'MM/DD/YYYY HH:MI:SS AM')" & vbCrLf &
             " AND UPPER(B.ISA_EMPLOYEE_ID) = UPPER(D.ISA_EMPLOYEE_ID)" & vbCrLf &
-                      " ORDER BY ORDER_NO, LINE_NBR, DTTM_STAMP"
+                      " ORDER BY  DTTM_STAMP"
 
             Try
                 objWalSCWorkOrder.WriteLine("  UpdateWalmartSourceCode Q1New: " & strSQLstring)
@@ -402,11 +404,27 @@ Module Module1
                 End Try
 
                 Dim I As Integer
+                Dim WO_Type As String = " "
+                Dim SamsClub_Key As String = ConfigurationSettings.AppSettings("SAMSCLUBKey").ToString()
                 Dim lstOfString As List(Of String) = New List(Of String)
                 For I = 0 To ds.Tables(0).Rows.Count - 1
+                    Dim IsSamsclubWO As Boolean = False
 
                     Try
                         Dim OrderNo As String = ds.Tables(0).Rows(I).Item("ORDER_NO")
+                        objWalSCWorkOrder.WriteLine("Order No: " + Convert.ToString(OrderNo) + "Count " + Convert.ToString(I))
+                        Try
+                            If Not IsDBNull(ds.Tables(0).Rows(I).Item("ISA_INSTALL_CUST")) Then
+                                WO_Type = ds.Tables(0).Rows(I).Item("ISA_INSTALL_CUST")
+                                objWalSCWorkOrder.WriteLine("WO_TYPE: " + Convert.ToString(WO_Type) + "Count " + Convert.ToString(I))
+                                If WO_Type = SamsClub_Key Then
+                                    IsSamsclubWO = True
+                                End If
+                            Else
+                                WO_Type = " "
+                            End If
+                        Catch ex As Exception
+                        End Try
                         If OrderNo.ToUpper.Substring(0, 1) = "W" Then
                             If Not lstOfString.Contains(OrderNo) Then
                                 objWalSCWorkOrder.WriteLine("Order No: " + Convert.ToString(OrderNo) + "Count " + Convert.ToString(I))
@@ -441,7 +459,7 @@ Module Module1
                                                 'WAL-622: SC Updates for Canceled Orders And Partial Deliveries 
                                                 'Mythili - WAL-824 Need Service Channel API change to map PUR (Ready for Pickup) from In Progress / Parts on Order to new Service Channel Extended Status “In Progress / Parts Ready for Pickup
                                                 If OrderStatusDetail.statusDesc = "Delivered" Or OrderStatusDetail.statusDesc = "En Route from Vendor" Or OrderStatusDetail.statusDesc = "Partially Delivered" Or OrderStatusDetail.statusDesc = "Cancelled" Or OrderStatusDetail.statusDesc = "Ready for Pickup" Then
-                                                    Dim CheckWOStatus As String = CheckWorkOrderStatus(WorkOrder, THIRDPARTY_COMP_ID)
+                                                    Dim CheckWOStatus As String = CheckWorkOrderStatus(WorkOrder, THIRDPARTY_COMP_ID, IsSamsclubWO)
                                                     objWalSCWorkOrder.WriteLine("CheckWOStatus: " + Convert.ToString(CheckWOStatus))
                                                     If CheckWOStatus.ToUpper() <> "COMPLETED" And CheckWOStatus <> "Failed" Then
                                                         Dim WOStatus As String = String.Empty
@@ -449,31 +467,27 @@ Module Module1
                                                             WOStatus = "PARTS DELIVERED"
                                                         ElseIf OrderStatusDetail.statusDesc = "En Route from Vendor" Then
                                                             WOStatus = "PARTS SHIPPED"
-                                                        ElseIf OrderStatusDetail.statusDesc = "Partially Delivered" Then
+                                                        ElseIf IsSamsclubWO = False And OrderStatusDetail.statusDesc = "Partially Delivered" Then
                                                             WOStatus = "PARTIAL PARTS DELIVERED"
                                                         ElseIf OrderStatusDetail.statusDesc = "Cancelled" Then
                                                             WOStatus = "INCOMPLETE"
-                                                        ElseIf OrderStatusDetail.statusDesc = "Ready for Pickup" Then
+                                                        ElseIf IsSamsclubWO = False And OrderStatusDetail.statusDesc = "Ready for Pickup" Then
                                                             WOStatus = "PARTS READY FOR PICKUP"
                                                         End If
                                                         If CheckWOStatus <> WOStatus Then
-                                                            Dim PurchaseNo As String = PurchaseOrderNo(WorkOrder, THIRDPARTY_COMP_ID)
+                                                            Dim PurchaseNo As String = PurchaseOrderNo(WorkOrder, THIRDPARTY_COMP_ID, IsSamsclubWO)
                                                             If PurchaseNo <> "Failed" Then
-                                                                If Not String.IsNullOrEmpty(THIRDPARTY_COMP_ID) Then
-                                                                    If THIRDPARTY_COMP_ID = ConfigurationSettings.AppSettings("CBRECompanyID").ToString() Then
-                                                                        UpdateWorkOrderStatus(WorkOrder, "CBRE", WOStatus)
-                                                                        UpdateWorkOrderStatus(PurchaseNo, "Walmart", WOStatus)
-                                                                    Else
-                                                                        UpdateWorkOrderStatus(WorkOrder, "Walmart", WOStatus)
-                                                                    End If
+                                                                If THIRDPARTY_COMP_ID = ConfigurationSettings.AppSettings("CBRECompanyID").ToString() Then
+                                                                    UpdateWorkOrderStatus(WorkOrder, "CBRE", WOStatus, IsSamsclubWO)
+                                                                    UpdateWorkOrderStatus(PurchaseNo, "Walmart", WOStatus, IsSamsclubWO)
+                                                                ElseIf IsSamsclubWO Then
+                                                                    UpdateWorkOrderStatus(WorkOrder, SamsClub_Key, WOStatus, IsSamsclubWO)
                                                                 Else
-                                                                    UpdateWorkOrderStatus(WorkOrder, "Walmart", WOStatus)
+                                                                    UpdateWorkOrderStatus(WorkOrder, "Walmart", WOStatus, IsSamsclubWO)
                                                                 End If
-
                                                             End If
                                                         End If
                                                     End If
-
                                                 End If
                                             End If
                                         End If
@@ -522,23 +536,67 @@ Module Module1
         End If
 
     End Function
+    Public Function GetCredentials(ByVal credtye As String) As DataSet
+        Try
+            Dim ds As DataSet
+            Dim sqlstring As String = String.Empty
+            sqlstring = "SELECT CLIENT_ID,CLIENT_SECRET,CLIENT_KEY,BASEURL,TOKENBASEURL,CRED_TYPE,GRANT_TYPE FROM SDIX_USERSACCESSTOKEN_TBL where CRED_TYPE= '" & credtye & "' and BUSINESS_UNIT='I0W01' AND ISACTIVE='Y'"
+            ds = ORDBAccess.GetAdapter(sqlstring, connectOR)
+            Return ds
+        Catch ex As Exception
+        End Try
+    End Function
     'Madhu-WAL-1203-Check  the Work Order status in service channel
 
-    Public Function CheckWorkOrderStatus(ByVal workOrder As String, THIRDPARTY_COMP_ID As String) As String
+    Public Function CheckWorkOrderStatus(ByVal workOrder As String, THIRDPARTY_COMP_ID As String, ByVal IsSamsclubWO As Boolean) As String
         Try
+            Dim ds As DataSet = New System.Data.DataSet
             Dim APIresponse As String = String.Empty
+            Dim username As String = String.Empty
+            Dim password As String = String.Empty
+            Dim clientkey As String = String.Empty
+            Dim baseurl As String = String.Empty
+            Dim tokenbaseurl As String = String.Empty
+            Dim credtype As String = String.Empty
+            Dim grant_type As String = String.Empty
+            Dim SamsClub_Key As String = ConfigurationSettings.AppSettings("SAMSCLUBKey").ToString()
             If Not String.IsNullOrEmpty(workOrder) And Not String.IsNullOrWhiteSpace(workOrder) Then
-                If Not String.IsNullOrEmpty(THIRDPARTY_COMP_ID) Then
-                    If THIRDPARTY_COMP_ID = ConfigurationSettings.AppSettings("CBRECompanyID").ToString() Then
-                        APIresponse = AuthenticateService("CBRE")
-                    Else
-                        APIresponse = AuthenticateService("Walmart")
-                    End If
+                If THIRDPARTY_COMP_ID = ConfigurationSettings.AppSettings("CBRECompanyID").ToString() Then
+                    ds = GetCredentials("CBRE")
+                ElseIf IsSamsclubWO Then
+                    ds = GetCredentials(SamsClub_Key)
+                Else
+                    ds = GetCredentials("WALMART")
                 End If
+                Try
+                    If Not ds Is Nothing Then
+                        If ds.Tables.Count > 0 Then
+                            If ds.Tables(0).Rows.Count > 0 Then
+                                Try
+                                    username = ds.Tables(0).Rows(0).Item("CLIENT_ID")
+                                    password = ds.Tables(0).Rows(0).Item("CLIENT_SECRET")
+                                    clientkey = ds.Tables(0).Rows(0).Item("CLIENT_KEY")
+                                    baseurl = ds.Tables(0).Rows(0).Item("BASEURL")
+                                    tokenbaseurl = ds.Tables(0).Rows(0).Item("TOKENBASEURL")
+                                    credtype = ds.Tables(0).Rows(0).Item("CRED_TYPE")
+                                    grant_type = ds.Tables(0).Rows(0).Item("GRANT_TYPE")
+                                Catch ex As Exception
+                                End Try
+                            End If
+                        End If
+                    End If
+                Catch ex As Exception
+                End Try
+
+                Try
+                    APIresponse = AuthenticateService(credtype, username, password, clientkey, tokenbaseurl, grant_type)
+                Catch ex As Exception
+                End Try
+
                 If (APIresponse <> "Server Error" And APIresponse <> "Internet Error" And APIresponse <> "Error") Then
                     If (Not APIresponse.Contains("error_description")) Then
                         Dim objValidateUserResponseBO As ValidateUserResponseBO = JsonConvert.DeserializeObject(Of ValidateUserResponseBO)(APIresponse)
-                        Dim apiURL = ConfigurationSettings.AppSettings("ServiceChannelBaseAddress") + "/odata/" + "/workorders(" + workOrder + ")?$select=Status"
+                        Dim apiURL = baseurl + "/odata/" + "/workorders(" + workOrder + ")?$select=Status"
                         Dim httpClient As HttpClient = New HttpClient()
                         ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12
                         httpClient.DefaultRequestHeaders.Authorization = New AuthenticationHeaderValue("Bearer", objValidateUserResponseBO.access_token)
@@ -563,25 +621,52 @@ Module Module1
             objWalSCWorkOrder.WriteLine("Method:CheckWorkOrderStatus - " + ex.Message)
         End Try
     End Function
-    Public Function PurchaseOrderNo(ByVal workOrder As String, THIRDPARTY_COMP_ID As String) As String
+    Public Function PurchaseOrderNo(ByVal workOrder As String, THIRDPARTY_COMP_ID As String, IsSamsclubWO As Boolean) As String
         Try
             Dim APIresponse = String.Empty
+            Dim ds As DataSet = New System.Data.DataSet
+            Dim username As String = String.Empty
+            Dim password As String = String.Empty
+            Dim clientkey As String = String.Empty
+            Dim baseurl As String = String.Empty
+            Dim tokenbaseurl As String = String.Empty
+            Dim credtype As String = String.Empty
+            Dim grant_type As String = String.Empty
             Dim objWorkOrderDetails As New WorkOrderDetails
+            Dim SamsClub_Key As String = ConfigurationSettings.AppSettings("SAMSCLUBKey").ToString()
             'Commented the CBRE Authentication for getting work order details
-            If Not String.IsNullOrEmpty(THIRDPARTY_COMP_ID) Then
-                If THIRDPARTY_COMP_ID = ConfigurationSettings.AppSettings("CBRECompanyID").ToString() Then
-                    APIresponse = AuthenticateService("CBRE")
-                Else
-                    APIresponse = AuthenticateService("Walmart")
-                End If
+            If THIRDPARTY_COMP_ID = ConfigurationSettings.AppSettings("CBRECompanyID").ToString() Then
+                ds = GetCredentials("CBRE")
+            ElseIf IsSamsclubWO Then
+                ds = GetCredentials(SamsClub_Key)
             Else
-                APIresponse = AuthenticateService("Walmart")
+                ds = GetCredentials("WALMART")
             End If
+
+            If Not ds Is Nothing Then
+                If ds.Tables.Count > 0 Then
+                    If ds.Tables(0).Rows.Count > 0 Then
+                        username = ds.Tables(0).Rows(0).Item("CLIENT_ID")
+                        password = ds.Tables(0).Rows(0).Item("CLIENT_SECRET")
+                        clientkey = ds.Tables(0).Rows(0).Item("CLIENT_KEY")
+                        baseurl = ds.Tables(0).Rows(0).Item("BASEURL")
+                        tokenbaseurl = ds.Tables(0).Rows(0).Item("TOKENBASEURL")
+                        credtype = ds.Tables(0).Rows(0).Item("CRED_TYPE")
+                        grant_type = ds.Tables(0).Rows(0).Item("GRANT_TYPE")
+                    End If
+                End If
+            End If
+
+
+            Try
+                APIresponse = AuthenticateService(credtype, username, password, clientkey, tokenbaseurl, grant_type)
+            Catch ex As Exception
+            End Try
             ' APIresponse = Await AuthenticateService(Walmart)
             If (APIresponse <> "Server Error" And APIresponse <> "Internet Error" And APIresponse <> "Error") Then
                 If (Not APIresponse.Contains("error_description")) Then
                     Dim objValidateUserResponseBO As ValidateUserResponseBO = JsonConvert.DeserializeObject(Of ValidateUserResponseBO)(APIresponse)
-                    Dim apiURL = ConfigurationSettings.AppSettings("ServiceChannelBaseAddress") + "/workorders/" + workOrder
+                    Dim apiURL = baseurl + "/workorders/" + workOrder
                     Dim httpClient As HttpClient = New HttpClient()
                     ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12
                     httpClient.DefaultRequestHeaders.Authorization = New AuthenticationHeaderValue("Bearer", objValidateUserResponseBO.access_token)
@@ -611,14 +696,49 @@ Module Module1
     End Function
     'Madhu-WAL-1203-Update the Work Order to service channel
 
-    Public Function UpdateWorkOrderStatus(ByVal workOrder As String, credType As String, status As String) As String
+    Public Function UpdateWorkOrderStatus(ByVal workOrder As String, credType As String, status As String, IsSamsclubWO As Boolean) As String
+        Dim ds As DataSet = New System.Data.DataSet
+        Dim username As String = String.Empty
+        Dim APIresponse As String = String.Empty
+        Dim password As String = String.Empty
+        Dim clientkey As String = String.Empty
+        Dim baseurl As String = String.Empty
+        Dim tokenbaseurl As String = String.Empty
+        Dim grant_type As String = String.Empty
+        Dim SamsClub_Key As String = ConfigurationSettings.AppSettings("SAMSCLUBKey").ToString()
+
         Try
             If Not String.IsNullOrEmpty(workOrder) And Not String.IsNullOrWhiteSpace(workOrder) Then
-                Dim APIresponse = AuthenticateService(credType)
+                If credType = ConfigurationSettings.AppSettings("CBRECompanyID").ToString() Then
+                    ds = GetCredentials("CBRE")
+                ElseIf IsSamsclubWO Then
+                    ds = GetCredentials(SamsClub_Key)
+                Else
+                    ds = GetCredentials("WALMART")
+                End If
+
+                If Not ds Is Nothing Then
+                    If ds.Tables.Count > 0 Then
+                        If ds.Tables(0).Rows.Count > 0 Then
+                            username = ds.Tables(0).Rows(0).Item("CLIENT_ID")
+                            password = ds.Tables(0).Rows(0).Item("CLIENT_SECRET")
+                            clientkey = ds.Tables(0).Rows(0).Item("CLIENT_KEY")
+                            baseurl = ds.Tables(0).Rows(0).Item("BASEURL")
+                            tokenbaseurl = ds.Tables(0).Rows(0).Item("TOKENBASEURL")
+                            credType = ds.Tables(0).Rows(0).Item("CRED_TYPE")
+                            grant_type = ds.Tables(0).Rows(0).Item("GRANT_TYPE")
+                        End If
+                    End If
+                End If
+
+                Try
+                    APIresponse = AuthenticateService(credType, username, password, clientkey, tokenbaseurl, grant_type)
+                Catch ex As Exception
+                End Try
                 If (APIresponse <> "Server Error" And APIresponse <> "Internet Error" And APIresponse <> "Error") Then
                     If (Not APIresponse.Contains("error_description")) Then
                         Dim objValidateUserResponseBO As ValidateUserResponseBO = JsonConvert.DeserializeObject(Of ValidateUserResponseBO)(APIresponse)
-                        Dim apiURL = ConfigurationSettings.AppSettings("ServiceChannelBaseAddress") + "/workorders/" + workOrder + "/status"
+                        Dim apiURL = baseurl + "/workorders/" + workOrder + "/status"
                         Dim httpClient As HttpClient = New HttpClient()
                         ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12
                         httpClient.DefaultRequestHeaders.Authorization = New AuthenticationHeaderValue("Bearer", objValidateUserResponseBO.access_token)
@@ -781,26 +901,14 @@ Module Module1
     'End Function
 
     'This method is used for Authentication the credential type
-    Public Function AuthenticateService(credType As String) As String
+    Public Function AuthenticateService(cred_type As String, username As String, password As String, Clientkey As String, tokenurl As String, Grant_Type As String) As String
         Try
             Dim httpClient As HttpClient = New HttpClient()
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12
-            Dim username As String = String.Empty
-            Dim password As String = String.Empty
-            Dim clientKey As String = String.Empty
-            If credType = "Walmart" Then
-                username = ConfigurationSettings.AppSettings("WMUName")
-                password = ConfigurationSettings.AppSettings("WMPassword")
-                clientKey = ConfigurationSettings.AppSettings("WMClientKey")
-            Else
-                username = ConfigurationSettings.AppSettings("CBREUName")
-                password = ConfigurationSettings.AppSettings("CBREPassword")
-                clientKey = ConfigurationSettings.AppSettings("CBREClientKey")
-            End If
-            Dim apiurl As String = ConfigurationSettings.AppSettings("ServiceChannelLoginEndPoint")
-            Dim formContent = New FormUrlEncodedContent({New KeyValuePair(Of String, String)("username", username), New KeyValuePair(Of String, String)("password", password), New KeyValuePair(Of String, String)("grant_type", "password")})
-            httpClient.DefaultRequestHeaders.Authorization = New AuthenticationHeaderValue("Basic", clientKey) 'Add("Authorization", "Basic " + clientKey)
-            Dim response = httpClient.PostAsync(apiurl, formContent).Result
+            ' Dim apiurl As String = ConfigurationSettings.AppSettings("ServiceChannelLoginEndPoint")
+            Dim formContent = New FormUrlEncodedContent({New KeyValuePair(Of String, String)("username", username), New KeyValuePair(Of String, String)("password", password), New KeyValuePair(Of String, String)("grant_type", Grant_Type)})
+            httpClient.DefaultRequestHeaders.Authorization = New AuthenticationHeaderValue("Basic", Clientkey) 'Add("Authorization", "Basic " + clientKey)
+            Dim response = httpClient.PostAsync(tokenurl, formContent).Result
             If response.IsSuccessStatusCode Then
                 Dim APIResponse = response.Content.ReadAsStringAsync().Result
                 Return APIResponse
